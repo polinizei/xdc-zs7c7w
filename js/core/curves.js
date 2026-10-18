@@ -473,7 +473,12 @@
         const v = kind === 'P' ? pw(tr.ys[x]) : nmScale.a + nmScale.b * tr.ys[x];
         pts.push([rpm(x), v]);
       }
-      const name = colorName(tr.rgb);
+      // Farbname aus der Abweichung vom Hintergrund (blasse Kurven haben kaum Pixelsaettigung):
+      // Linienfarbe ~ Gegenrichtung der Abweichung, auf den kleinsten Kanal verschoben
+      const inv = tr.seed.map(v => -v), lo = Math.min(...inv);
+      const dirRGB = inv.map(v => v - lo);
+      const strong = Math.max(...dirRGB) > Math.hypot(...tr.seed) * 0.35;
+      const name = strong ? colorName(dirRGB.map(v => Math.round(v * 255 / Math.max(1, Math.max(...dirRGB))))) : colorName(tr.rgb);
       const runKey = r ? Math.min(idx, r.partner) : idx;
       if (!(runKey in counts)) counts[runKey] = Object.keys(counts).length + 1;
       curves.push({

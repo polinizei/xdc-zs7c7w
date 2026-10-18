@@ -231,3 +231,13 @@ label.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer;
   #scr-analyse .stage-wrap canvas { height: 56dvh; }
   #chart { height: 400px; }
 }
+
+/* ---------- Warteschlange / Hinweis ---------- */
+.st-q { font-weight: 700; font-size: 14px; color: var(--accent); margin-bottom: 2px; }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+  bottom: calc(90px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
+  background: #111; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+.toast[hidden] { display: none; }

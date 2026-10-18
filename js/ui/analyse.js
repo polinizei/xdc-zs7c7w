@@ -80,6 +80,12 @@
     this.viewer.setImage(this.enhanced ? R.enhancedCanvas : R.canvas);
   };
 
+  // Warteschlange: Text "Bild 2 von 3" und Anzahl folgender Bilder (aendert Knopf-Beschriftungen)
+  Analyse.prototype.setQueueInfo = function (text, remaining) {
+    this.queueText = text || '';
+    this.queueRest = remaining || 0;
+  };
+
   // ---------- Ablauf ----------
   Analyse.prototype.start = async function (srcCanvas, name, pdfWords) {
     this.src = srcCanvas; this.name = name; this.pdfWords = pdfWords || null;
@@ -144,7 +150,9 @@
     e.barInput.hidden = m !== 'axis';
     e.barFix.hidden = !(m === 'review' || m === 'add');
     e.barOk.disabled = m === 'run';
-    e.barOk.textContent = m === 'corners' ? 'Analysieren' : m === 'axis' ? 'Überspringen' : 'Übernehmen';
+    const more = this.queueRest > 0;
+    e.barOk.textContent = m === 'corners' ? 'Analysieren' : m === 'axis' ? 'Überspringen' : (more ? 'Übernehmen, weiter' : 'Übernehmen');
+    e.barBack.textContent = more && (m === 'review' || m === 'run') ? 'Bild überspringen' : 'Zurück';
     e.fixMenu.hidden = true;
     this.viewer.draw();
   };
@@ -348,7 +356,8 @@
   Analyse.prototype._renderStatus = function () {
     const r = this.res, el = this.els.status;
     const row = (state, text) => `<div class="st st-${state}"><span class="st-i">${state === 'ok' ? '✓' : state === 'unsicher' ? '!' : '✕'}</span><span>${esc(text)}</span></div>`;
-    let h = row(this.frameFound ? 'ok' : 'unsicher', this.frameFound ? 'Diagrammrahmen erkannt' : 'Rahmen von Hand gesetzt');
+    let h = this.queueText ? `<div class="st-q">${esc(this.queueText)}${this.name ? ' · ' + esc(this.name) : ''}</div>` : '';
+    h += row(this.frameFound ? 'ok' : 'unsicher', this.frameFound ? 'Diagrammrahmen erkannt' : 'Rahmen von Hand gesetzt');
     if (r) {
       const fr = r.rect.frame, cal = r.cal;
       if (cal.x) h += row(r.steps.x, `Drehzahl ${Math.round(cal.x.a + cal.x.b * fr.x0)} bis ${Math.round(cal.x.a + cal.x.b * fr.x1)} U/min` + (r.axes.x ? ` (${r.axes.x.n} Zahlen gelesen)` : ' (von Hand)'));

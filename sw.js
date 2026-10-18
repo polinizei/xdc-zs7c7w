@@ -1,5 +1,5 @@
 // XDC - sw.js | Offline-Cache (Cache-first). Version anheben = neuer Cache.
-const XDC_CACHE = 'xdc-v0.4.0';
+const XDC_CACHE = 'xdc-v0.5.0';
 const FILES = [
   './',
   './index.html',

@@ -135,8 +135,37 @@
     cv.addEventListener('touchmove', move, { passive: false });
   })();
 
-  // ---------- Import ----------
-  async function handleFile(file) {
+  // ---------- Import (Warteschlange: mehrere Bilder/PDFs nacheinander pruefen) ----------
+  const queue = { files: [], pos: 0, added: 0 };
+
+  function handleFiles(list) {
+    const files = Array.from(list || []).filter(Boolean);
+    if (!files.length) return;
+    queue.files = files; queue.pos = 0; queue.added = 0;
+    nextFile();
+  }
+
+  function nextFile() {
+    if (queue.pos >= queue.files.length) {
+      const n = queue.files.length;
+      queue.files = [];
+      show('scr-home');
+      if (n > 1) toast(`${n} Bilder bearbeitet, ${queue.added} Kurven übernommen.`);
+      return;
+    }
+    const f = queue.files[queue.pos];
+    const total = queue.files.length;
+    analyse.setQueueInfo(total > 1 ? `Bild ${queue.pos + 1} von ${total}` : '', total - queue.pos - 1);
+    handleFile(f, queue.pos + 1);
+  }
+
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text; t.hidden = false;
+    clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 4000);
+  }
+
+  async function handleFile(file, nr) {
     if (!file) return;
     try {
       let pageNo = 1;
@@ -150,15 +179,19 @@
         const p = parseInt(prompt(`PDF hat ${res.pages} Seiten. Welche Seite?`, '1') || '1', 10);
         if (p > 1) res = await window.XDCCapture.loadFile(file, p);
       }
-      const name = /^(image|IMG|PXL|Screenshot|photo|DSC)[-_]?\d/i.test(file.name) ? '' : file.name.replace(/\.[^.]+$/, '');
+      // Kamera-/Galerie-Namen sind nichtssagend: bei mehreren Bildern "Bild N", sonst leer
+      const generic = /^(image|IMG|PXL|Screenshot|photo|DSC)[-_]?\d/i.test(file.name);
+      const name = generic ? (queue.files.length > 1 ? `Bild ${nr}` : '') : file.name.replace(/\.[^.]+$/, '');
       show('scr-analyse');
       analyse.start(res.canvas, name, res.words);
     } catch (err) {
-      alert('Datei konnte nicht geladen werden: ' + err.message);
+      toast(`${file.name}: konnte nicht geladen werden (${err.message})`);
+      queue.pos++;
+      nextFile();
     }
   }
-  $('file-foto').addEventListener('change', ev => { handleFile(ev.target.files[0]); ev.target.value = ''; });
-  $('file-bild').addEventListener('change', ev => { handleFile(ev.target.files[0]); ev.target.value = ''; });
+  $('file-foto').addEventListener('change', ev => { handleFiles(ev.target.files); ev.target.value = ''; });
+  $('file-bild').addEventListener('change', ev => { handleFiles(ev.target.files); ev.target.value = ''; });
 
   // ---------- Export ----------
   function download(name, href) {
@@ -202,9 +235,12 @@
     onAccept: curves => {
       for (const c of curves) M.addCurve(project, c);
       M.save(project);
-      show('scr-home');
+      queue.added += curves.length;
+      queue.pos++;
+      nextFile();
     },
-    onBack: () => show('scr-home')
+    // Zurueck: dieses Bild ueberspringen, weiter mit dem naechsten (oder zur Uebersicht)
+    onBack: () => { queue.pos++; nextFile(); }
   });
 
   // Bei Groessenwechsel Chart in neuer Aufloesung rendern
