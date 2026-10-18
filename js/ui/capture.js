@@ -38,14 +38,42 @@
     const cv = document.createElement('canvas');
     cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
     await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-    return { canvas: cv, pages: pdf.numPages };
+    return { canvas: cv, pages: pdf.numPages, words: await pdfWords(page, vp) };
+  }
+
+  // Text der PDF-Seite als Woerter mit Canvas-Pixel-Box. Zusammengefasste Stuecke ("4500 [U/min] 5500 ...")
+  // werden an Leerzeichen geteilt, Position ueber gemessene Schriftbreiten (Ziffern/Klammern sind ungleich breit).
+  async function pdfWords(page, vp) {
+    const out = [];
+    const mctx = document.createElement('canvas').getContext('2d');
+    mctx.font = '100px Arial, Helvetica, sans-serif';
+    const mw = s => mctx.measureText(s).width;
+    try {
+      const tc = await page.getTextContent();
+      for (const it of tc.items) {
+        if (!it.str || !it.str.trim()) continue;
+        const tr = it.transform, x = tr[4], y = tr[5];
+        const w = it.width || 0, h = it.height || Math.hypot(tr[2], tr[3]) || 8;
+        const p0 = vp.convertToViewportPoint(x, y), p1 = vp.convertToViewportPoint(x + w, y + h);
+        const X0 = Math.min(p0[0], p1[0]), X1 = Math.max(p0[0], p1[0]);
+        const Y0 = Math.min(p0[1], p1[1]), Y1 = Math.max(p0[1], p1[1]);
+        const s = it.str, total = mw(s) || 1;
+        const re = /\S+/g;
+        let m;
+        while ((m = re.exec(s))) {
+          const a = mw(s.slice(0, m.index)) / total, b = mw(s.slice(0, m.index + m[0].length)) / total;
+          out.push({ text: m[0], x0: X0 + (X1 - X0) * a, x1: X0 + (X1 - X0) * b, y0: Y0, y1: Y1 });
+        }
+      }
+    } catch (e) { /* PDF ohne Textebene: OCR uebernimmt */ }
+    return out;
   }
 
   async function loadFile(file, pageNo) {
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
       return loadPdfFile(file, pageNo);
     }
-    return { canvas: await loadImageFile(file), pages: 1 };
+    return { canvas: await loadImageFile(file), pages: 1, words: null };
   }
 
   const api = { loadFile, MAX_DIM };

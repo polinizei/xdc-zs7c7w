@@ -1,5 +1,5 @@
 // XDC - sw.js | Offline-Cache (Cache-first). Version anheben = neuer Cache.
-const XDC_CACHE = 'xdc-v0.2.0';
+const XDC_CACHE = 'xdc-v0.3.0';
 const FILES = [
   './',
   './index.html',
@@ -14,14 +14,23 @@ const FILES = [
   './js/core/trace.js',
   './js/core/units.js',
   './js/core/model.js',
+  './js/core/vision.js',
+  './js/core/axes.js',
+  './js/core/curves.js',
+  './js/core/ocr.js',
+  './js/core/autopilot.js',
   './js/ui/overlay.js',
   './js/ui/viewer.js',
   './js/ui/capture.js',
-  './js/ui/calibrate.js',
-  './js/ui/traceui.js',
+  './js/ui/analyse.js',
   './js/ui/app.js',
   './vendor/pdf.min.js',
-  './vendor/pdf.worker.min.js'
+  './vendor/pdf.worker.min.js',
+  './vendor/tesseract/tesseract.min.js',
+  './vendor/tesseract/worker.min.js',
+  './vendor/tesseract/tesseract-core-simd-lstm.wasm.js',
+  './vendor/tesseract/tesseract-core-lstm.wasm.js',
+  './vendor/tesseract/eng.traineddata.gz'
 ];
 
 self.addEventListener('install', ev => {

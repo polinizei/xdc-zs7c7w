@@ -46,6 +46,16 @@
     return ya + (yb - ya) * t;
   }
 
+  // Gleitender Mittelwert ueber w Stuetzpunkte (am Rand verkuerztes Fenster), Drehzahlen unveraendert.
+  function smooth(points, w) {
+    const half = Math.floor((w || 5) / 2);
+    return points.map((p, i) => {
+      let s = 0, n = 0;
+      for (let k = Math.max(0, i - half); k <= Math.min(points.length - 1, i + half); k++) { s += points[k][1]; n++; }
+      return [p[0], s / n];
+    });
+  }
+
   function peak(points) {
     if (!points || !points.length) return null;
     let best = points[0];
@@ -69,7 +79,7 @@
     return ticks;
   }
 
-  const api = { KW_PER_PS, psToKw, kwToPs, convert, resample, valueAt, peak, niceTicks };
+  const api = { KW_PER_PS, psToKw, kwToPs, convert, resample, smooth, valueAt, peak, niceTicks };
   global.XDCUnits = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

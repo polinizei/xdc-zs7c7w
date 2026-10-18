@@ -8,7 +8,6 @@
   let project = M.load();
   let settings = M.loadSettings();
   let crosshair = null;
-  let session = null; // {src, sourceName} bzw. nach Entzerrung {rect, calib}
 
   // ---------- Theme ----------
   function applyTheme() {
@@ -31,9 +30,11 @@
   function show(name) {
     for (const s of document.querySelectorAll('.screen')) s.hidden = true;
     $(name).hidden = false;
+    $('bar-home').hidden = name !== 'scr-home';
+    $('bar-analyse').hidden = name !== 'scr-analyse';
+    window.scrollTo(0, 0);
     if (name === 'scr-home') renderHome();
-    if (name === 'scr-calib') calibViewer.fit();
-    if (name === 'scr-trace') traceViewer.fit();
+    if (name === 'scr-analyse') requestAnimationFrame(() => analyse.viewer.fit());
   }
 
   // ---------- Home: Chart + Liste ----------
@@ -149,9 +150,9 @@
         const p = parseInt(prompt(`PDF hat ${res.pages} Seiten. Welche Seite?`, '1') || '1', 10);
         if (p > 1) res = await window.XDCCapture.loadFile(file, p);
       }
-      session = { sourceName: file.name.replace(/\.[^.]+$/, '') };
-      calibrate.start(res.canvas, session.sourceName);
-      show('scr-calib');
+      const name = /^(image|IMG|PXL|Screenshot|photo|DSC)[-_]?\d/i.test(file.name) ? '' : file.name.replace(/\.[^.]+$/, '');
+      show('scr-analyse');
+      analyse.start(res.canvas, name, res.words);
     } catch (err) {
       alert('Datei konnte nicht geladen werden: ' + err.message);
     }
@@ -191,36 +192,20 @@
     M.saveSettings(settings); applyTheme();
   });
 
-  // ---------- Kalibrier-Screen ----------
-  const calibViewer = new window.XDCViewer($('calib-canvas'), {});
-  const calibrate = new window.XDCCalibrate(calibViewer, {
-    profile: $('cal-profile'), rpmL: $('cal-rpml'), rpmR: $('cal-rpmr'),
-    leftUnit: $('cal-unit'), leftTop: $('cal-top'), leftBottom: $('cal-bottom'),
-    hint: $('cal-hint'), go: $('cal-go'), status: $('cal-status')
-  }, result => {
-    session.rect = result.rect; session.calib = result.calib;
-    traceUI.start(result.rect, result.calib, result.sourceName);
-    show('scr-trace');
-  });
-  $('cal-unit').addEventListener('change', ev => { ev.target.dataset.touched = '1'; });
-  $('cal-back').addEventListener('click', () => show('scr-home'));
-
-  // ---------- Trace-Screen ----------
-  const traceViewer = new window.XDCViewer($('trace-canvas'), {});
-  const traceUI = new window.XDCTraceUI(traceViewer, {
-    toolTap: $('tr-tap'), toolDraw: $('tr-draw'), toolErase: $('tr-erase'), toolNm: $('tr-nm'),
-    name: $('tr-name'), kind: $('tr-kind'), scaleSel: $('tr-scale'),
-    apply: $('tr-apply'), discard: $('tr-discard'), done: $('tr-done'),
-    status: $('tr-status'), nmInfo: $('tr-nminfo')
+  // ---------- Analyse (Autopilot) ----------
+  const analyse = new window.XDCAnalyse({
+    canvas: $('an-canvas'), status: $('an-status'), list: $('an-list'),
+    barMsg: $('bar-msg'), barBack: $('bar-back'), barFix: $('bar-fix'), barOk: $('bar-ok'),
+    barInput: $('bar-input'), barValue: $('bar-value'), barSign: $('bar-sign'), barApply: $('bar-apply'),
+    fixMenu: $('fix-menu')
   }, {
-    onCurve: data => { M.addCurve(project, data); M.save(project); },
-    onFinish: () => { session = null; show('scr-home'); }
+    onAccept: curves => {
+      for (const c of curves) M.addCurve(project, c);
+      M.save(project);
+      show('scr-home');
+    },
+    onBack: () => show('scr-home')
   });
-  // Typ-Wechsel setzt sinnvolle Skala vor
-  $('tr-kind').addEventListener('change', ev => {
-    $('tr-scale').value = ev.target.value === 'M' ? 'nm' : 'left';
-  });
-  $('tr-back').addEventListener('click', () => show('scr-calib'));
 
   // Bei Groessenwechsel Chart in neuer Aufloesung rendern
   let resizeT = null;
@@ -242,9 +227,8 @@
 
   // Test-Hooks (nur fuer automatisierte Pruefung, keine UI-Funktion)
   window.XDCApp = {
-    calibrate, traceUI, show,
+    analyse, show,
     getProject: () => project,
-    resetProject: () => { project = M.blank(); persist(); },
-    startCalib: (canvas, name) => { session = { sourceName: name }; calibrate.start(canvas, name); show('scr-calib'); }
+    resetProject: () => { project = M.blank(); persist(); }
   };
 })();

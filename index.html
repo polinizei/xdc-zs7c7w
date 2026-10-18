@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <meta name="referrer" content="no-referrer">
 <title>XDC · Xyger Dyno Compare</title>
-<!-- XDC v0.2.0 | Prüfstandsdiagramme digitalisieren und vergleichen | _personal/xyger/dyno-compare/app/index.html -->
+<!-- XDC v0.3.0 | Prüfstandsdiagramme digitalisieren und vergleichen | _personal/xyger/dyno-compare/app/index.html -->
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -24,27 +24,15 @@
   <button id="btn-theme" type="button">Dunkel</button>
 </header>
 
-<!-- ============ Screen: Übersicht / Vergleich ============ -->
+<!-- ============ Screen: Vergleich ============ -->
 <main class="wrap screen" id="scr-home">
 
   <div class="card" id="empty-hint">
     <h2>Prüfstandskurven vergleichen</h2>
-    <p class="hint" style="margin:0 0 10px">
-      Foto, Screenshot oder PDF eines Prüfstands-Ausdrucks laden (P4 Amerschläger alt/neu,
-      Lutz, oder beliebig). Diagramm entzerren, Kurven antippen, fertig: alle Läufe liegen
-      vergleichbar übereinander.
+    <p class="hint" style="margin:0">
+      Ausdruck fotografieren oder Bild/PDF laden (P4 Amerschläger alt/neu, Lutz oder andere).
+      Die App erkennt Rahmen, Achsen und Kurven selbst. Du prüfst nur noch das Ergebnis.
     </p>
-  </div>
-
-  <div class="card">
-    <div class="btn-row">
-      <label class="btn primary filebtn">📷 Foto aufnehmen
-        <input type="file" id="file-foto" accept="image/*" capture="environment">
-      </label>
-      <label class="btn filebtn">🖼 Bild / PDF laden
-        <input type="file" id="file-bild" accept="image/*,application/pdf">
-      </label>
-    </div>
   </div>
 
   <div class="card" id="chart-card">
@@ -70,120 +58,75 @@
     </div>
   </div>
 
+  <p class="foot"><a href="impressum.html">Impressum &amp; Datenschutz</a></p>
 </main>
 
-<!-- ============ Screen: Entzerren + Kalibrieren ============ -->
-<main class="wrap screen" id="scr-calib" hidden>
-  <div class="card">
-    <h2>1 · Diagramm entzerren und kalibrieren</h2>
-    <div class="form-grid">
-      <label>Prüfstand / Profil
-        <select id="cal-profile">
-          <option value="p4alt">P4 Amerschläger (alt)</option>
-          <option value="p4neu">P4 Amerschläger (neu)</option>
-          <option value="lutz">Lutz Leistungsprüfstand</option>
-          <option value="frei">Freies Diagramm</option>
-        </select>
-      </label>
-      <label>Einheit linke Skala
-        <select id="cal-unit">
-          <option value="PS">PS</option>
-          <option value="kW">kW</option>
-          <option value="Nm">Nm</option>
-        </select>
-      </label>
-      <label>Drehzahl links (U/min)
-        <input id="cal-rpml" type="number" inputmode="numeric" placeholder="z.B. 4500">
-      </label>
-      <label>Drehzahl rechts (U/min)
-        <input id="cal-rpmr" type="number" inputmode="numeric" placeholder="z.B. 12000">
-      </label>
-      <label>Linke Skala: Wert oben
-        <input id="cal-top" type="number" inputmode="decimal" placeholder="z.B. 30">
-      </label>
-      <label>Linke Skala: Wert unten
-        <input id="cal-bottom" type="number" inputmode="decimal" placeholder="z.B. -25">
-      </label>
-    </div>
-    <p class="hint" id="cal-hint"></p>
-    <p class="status" id="cal-status"></p>
-  </div>
-
-  <div class="stage-wrap"><canvas id="calib-canvas"></canvas></div>
-  <p class="hint">Die 4 orangen Griffe auf die Rahmen-Ecken ziehen (Lupe hilft beim Feinsetzen).
-    Ziehen = verschieben, Pinch/Mausrad = zoomen.</p>
-
-  <div class="btn-row">
-    <button class="btn" id="cal-back" type="button">Zurück</button>
-    <button class="btn primary" id="cal-go" type="button">Entzerren →</button>
+<!-- ============ Screen: Analyse (Autopilot) ============ -->
+<main class="wrap screen" id="scr-analyse" hidden>
+  <div class="card status-card" id="an-status"></div>
+  <div class="stage-wrap"><canvas id="an-canvas"></canvas></div>
+  <div class="card" id="an-list-card">
+    <h2>Erkannte Kurven</h2>
+    <div id="an-list"></div>
+    <p class="hint">Haken weg = Kurve nicht übernehmen. Namen direkt ändern. Antippen im Bild hebt die Kurve hervor.</p>
   </div>
 </main>
 
-<!-- ============ Screen: Kurven tracen ============ -->
-<main class="wrap screen" id="scr-trace" hidden>
-  <div class="card">
-    <h2>2 · Kurven erfassen</h2>
-    <div class="btn-row">
-      <button class="btn small" id="tr-tap" type="button">Antippen</button>
-      <button class="btn small" id="tr-draw" type="button">Nachziehen</button>
-      <button class="btn small" id="tr-erase" type="button">Radieren</button>
-      <button class="btn small" id="tr-nm" type="button">Nm-Skala</button>
-    </div>
-    <p class="status" id="tr-status"></p>
-    <p class="hint" id="tr-nminfo"></p>
+<!-- ============ Feste Fußleisten ============ -->
+<nav class="bar" id="bar-home">
+  <label class="btn primary filebtn">📷 Foto aufnehmen
+    <input type="file" id="file-foto" accept="image/*" capture="environment">
+  </label>
+  <label class="btn filebtn">🖼 Bild / PDF
+    <input type="file" id="file-bild" accept="image/*,application/pdf">
+  </label>
+</nav>
+
+<nav class="bar bar-analyse" id="bar-analyse" hidden>
+  <div class="bar-msg" id="bar-msg" aria-live="polite"></div>
+  <div class="bar-input" id="bar-input" hidden>
+    <button class="btn small" id="bar-sign" type="button" title="Vorzeichen">±</button>
+    <input id="bar-value" type="text" inputmode="decimal" autocomplete="off" placeholder="Wert">
+    <button class="btn small primary" id="bar-apply" type="button">OK</button>
   </div>
-
-  <div class="stage-wrap"><canvas id="trace-canvas"></canvas></div>
-
-  <div class="card">
-    <div class="trace-form">
-      <label class="full">Name der Kurve
-        <input id="tr-name" type="text" placeholder="z.B. Lauf 1503 HD160">
-      </label>
-      <label>Typ
-        <select id="tr-kind">
-          <option value="P">Leistung</option>
-          <option value="M">Drehmoment</option>
-        </select>
-      </label>
-      <label>Skala
-        <select id="tr-scale">
-          <option value="left">Linke Skala</option>
-          <option value="nm">Nm-Skala</option>
-        </select>
-      </label>
-      <label>&nbsp;
-        <button class="btn primary" id="tr-apply" type="button">Übernehmen</button>
-      </label>
+  <div class="bar-btns">
+    <button class="btn" id="bar-back" type="button">Zurück</button>
+    <div class="fix-wrap">
+      <button class="btn" id="bar-fix" type="button">Korrigieren</button>
+      <div class="fix-menu" id="fix-menu" hidden>
+        <button type="button" data-fix="corners">Ecken anpassen</button>
+        <button type="button" data-fix="x">Drehzahl-Achse festlegen</button>
+        <button type="button" data-fix="power">Leistungs-Skala festlegen</button>
+        <button type="button" data-fix="add">Kurve hinzufügen</button>
+      </div>
     </div>
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn small" id="tr-back" type="button">Zurück</button>
-      <button class="btn small" id="tr-discard" type="button">Trace verwerfen</button>
-      <button class="btn small" id="tr-done" type="button">Fertig → Vergleich</button>
-    </div>
+    <button class="btn primary" id="bar-ok" type="button">Übernehmen</button>
   </div>
-</main>
-
-<footer class="foot"><a href="impressum.html">Impressum &amp; Datenschutz</a></footer>
+</nav>
 
 <script>
   // Versions-Konstante + Laufzeit-Ausgabe
-  window.XDC_VERSION = '0.2.0';
+  window.XDC_VERSION = '0.3.0';
   console.log('XDC v' + window.XDC_VERSION + ' Start ' + new Date().toISOString());
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('app-ver').textContent = 'v' + window.XDC_VERSION;
   });
 </script>
 <script src="vendor/pdf.min.js"></script>
+<script src="vendor/tesseract/tesseract.min.js"></script>
 <script src="js/core/homography.js"></script>
 <script src="js/core/trace.js"></script>
 <script src="js/core/units.js"></script>
 <script src="js/core/model.js"></script>
+<script src="js/core/vision.js"></script>
+<script src="js/core/axes.js"></script>
+<script src="js/core/curves.js"></script>
+<script src="js/core/ocr.js"></script>
+<script src="js/core/autopilot.js"></script>
 <script src="js/ui/overlay.js"></script>
 <script src="js/ui/viewer.js"></script>
 <script src="js/ui/capture.js"></script>
-<script src="js/ui/calibrate.js"></script>
-<script src="js/ui/traceui.js"></script>
+<script src="js/ui/analyse.js"></script>
 <script src="js/ui/app.js"></script>
 </body>
 </html>
