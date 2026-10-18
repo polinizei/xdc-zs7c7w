@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="referrer" content="no-referrer">
+<title>Impressum</title>
+<!-- XDC Impressum v0.1.0 | 2026-10-18 | _personal/xyger/dyno-compare/app/impressum.html
+     Vorlage: _personal/xyger/ansauggummi/impressum.html (XAG v0.4.0). Pflichtangaben werden per JavaScript
+     aus kodierten Teilen zusammengesetzt (nicht im Klartext im Quelltext, kein Suchmaschinen-Index). -->
+<style>
+  :root{--bar:#2b2f33;--bar-ink:#f2f3f4;--bg:#ffffff;--card:#ffffff;--ink:#1b1f24;--muted:#6b7280;--line:#d9dcdf;--accent:#ea580c;--accent-ink:#fff;color-scheme:light}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Roboto Condensed","Arial Narrow",system-ui,sans-serif;font-stretch:condensed}
+  .bar{background:var(--bar);color:var(--bar-ink);padding-top:env(safe-area-inset-top,0px)} .bar .in{max-width:760px;margin:0 auto;padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{color:#fff;text-decoration:none;font-weight:700;letter-spacing:.5px} .brand b{color:var(--accent)}
+  .lang{display:flex;gap:4px} .lang button{background:transparent;border:0;border-bottom:2px solid transparent;color:#c9cdd1;font:inherit;font-weight:700;letter-spacing:.08em;font-size:13px;min-height:40px;padding:4px 8px;cursor:pointer}
+  .lang button[aria-pressed="true"]{color:#fff;border-bottom-color:var(--accent)}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+  h1{font-size:24px;line-height:1.15;margin:0;text-transform:uppercase;letter-spacing:.02em}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px} .card h2{font-size:18px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.02em}
+  .card h3{font-size:15px;margin:16px 0 4px} .card p{margin:0 0 8px;font-size:15px} .muted{color:var(--muted);font-size:14px} a{color:var(--accent)} address{font-style:normal;white-space:pre-line}
+  .back{justify-self:start;display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;text-decoration:none}
+</style>
+</head>
+<body>
+<header class="bar"><div class="in"><a class="brand" href="./"><b>X</b>DC · Dyno Compare</a><div class="lang" id="lang"><button data-l="de">DE</button><button data-l="en">EN</button></div></div></header>
+<div class="wrap">
+  <h1 id="h"></h1>
+  <section class="card" id="imp"></section>
+  <section class="card" id="ds"></section>
+  <a class="back" id="back" href="./"></a>
+</div>
+<script>
+// Pflichtangaben kodiert (Zeichencodes, umgekehrt), identisch mit XAG-Impressum. Zusammensetzen erst zur Laufzeit.
+const K={ f:[116,114,111,112,115,110,110,101,82,32,114,101,103,121,88], n:[97,119,105,100,97,108,75,32,108,101,97,104,99,105,77],
+  s:[97,50,51,32,114,101,103,110,65,32,109,65], o:[110,101,115,117,97,104,108,104,252,77,32,84,79,32,103,110,105,102,102,65,32,52,52,52,54,56],
+  m:[109,111,99,46,108,105,97,109,103,64,114,101,103,121,120,46,108,97,116,114,111,112] };
+const D=k=>String.fromCharCode(...K[k].slice().reverse());
+const T={
+de:{h:"Impressum & Datenschutz", imp:"Impressum", law:"Angaben gemäß § 5 DDG", contact:"Kontakt", mail:"E-Mail", resp:"Verantwortlich für den Inhalt (§ 18 Abs. 2 MStV)", respT:"wie oben", odr:"Streitbeilegung", odrT:"Zur Teilnahme an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle sind wir nicht verpflichtet und nicht bereit.", country:"Deutschland",
+  liab:"Hinweis zu den Ergebnissen", liabT:"Das Werkzeug digitalisiert Kurven aus Fotos, Screenshots und PDFs. Die ermittelten Werte sind Näherungen und hängen von Bildqualität, Entzerrung und Kalibrierung ab. Sie ersetzen keine Messung auf dem Prüfstand. Marken und Bezeichnungen von Prüfstandsherstellern dienen nur zur Beschreibung des Ausdruck-Formats, es besteht keine Verbindung zu den Herstellern.",
+  ds:"Datenschutzerklärung", ctrl:"Verantwortlicher", ctrlT:"siehe Impressum.", host:"Hosting", hostT:"Diese Seite wird bei GitHub Pages (GitHub Inc., 88 Colin P. Kelly Jr. St., San Francisco, CA 94107, USA) gehostet. Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie IP-Adresse, Zeitpunkt, aufgerufene Seite und Browsertyp in Server-Logs. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO). Die Übermittlung in die USA stützt sich auf das EU-US Data Privacy Framework, dem GitHub angehört.", hostL:"Datenschutzhinweise von GitHub",
+  tool:"Werkzeug", toolT:"Fotos, Screenshots und PDFs, die du lädst oder mit der Kamera aufnimmst, werden ausschließlich in deinem Browser verarbeitet und nicht an uns oder Dritte übertragen. Die erfassten Kurven, deren Namen und deine Einstellungen (Einheit, Ansicht, Hell/Dunkel) werden lokal in deinem Browser gespeichert (localStorage), damit sie beim nächsten Aufruf noch da sind. Die Bilder selbst werden nicht gespeichert. Für den Offline-Betrieb legt der Browser die Programmdateien in einem lokalen Zwischenspeicher ab. Du kannst alle Daten jederzeit über \"Alle Kurven löschen\" oder die Browser-Einstellungen entfernen. Es werden keine Cookies gesetzt, keine Analysedienste und keine externen Inhalte eingesetzt.",
+  cam:"Kamera", camT:"Die Kamera wird nur geöffnet, wenn du \"Foto aufnehmen\" antippst, und nur über die Kamera-Funktion deines Geräts. Das Foto bleibt auf deinem Gerät.",
+  em:"E-Mail", emT:"Wenn du uns per E-Mail schreibst, verwenden wir deine Angaben nur zur Bearbeitung deiner Anfrage. Unser Postfach liegt bei Google (Gmail, Google Ireland Ltd.). Dabei können Daten in die USA übermittelt werden, gestützt auf das EU-US Data Privacy Framework.",
+  rights:"Deine Rechte", rightsT:"Auskunft, Berichtigung, Löschung, Einschränkung, Widerspruch und Beschwerde bei einer Aufsichtsbehörde (Art. 15 bis 21, 77 DSGVO). Kontakt siehe Impressum.", back:"Zurück zum Werkzeug"},
+en:{h:"Legal notice & privacy", imp:"Legal notice", law:"Information pursuant to § 5 DDG (German Digital Services Act)", contact:"Contact", mail:"E-mail", resp:"Responsible for content (§ 18 (2) MStV)", respT:"as above", odr:"Dispute resolution", odrT:"We are neither obliged nor willing to take part in dispute resolution proceedings before a consumer arbitration board.", country:"Germany",
+  liab:"Note on results", liabT:"This tool digitises curves from photos, screenshots and PDFs. The values obtained are approximations and depend on image quality, rectification and calibration. They do not replace a measurement on a dyno. Brand names of dyno manufacturers are only used to describe the printout format; there is no affiliation with the manufacturers.",
+  ds:"Privacy policy", ctrl:"Controller", ctrlT:"see legal notice.", host:"Hosting", hostT:"This site is hosted on GitHub Pages (GitHub Inc., 88 Colin P. Kelly Jr. St., San Francisco, CA 94107, USA). When you visit, GitHub processes technically necessary data such as IP address, time, page requested and browser type in server logs. The legal basis is our legitimate interest in secure operation (Art. 6 (1) (f) GDPR). Transfer to the USA relies on the EU-US Data Privacy Framework, which GitHub participates in.", hostL:"GitHub privacy statement",
+  tool:"Tool", toolT:"Photos, screenshots and PDFs you load or take with the camera are processed exclusively in your browser and are not transmitted to us or third parties. The captured curves, their names and your settings (unit, view, light/dark) are stored locally in your browser (localStorage) so they are still there next time. The images themselves are not stored. For offline use the browser keeps the program files in a local cache. You can remove all data at any time via \"Delete all curves\" or your browser settings. No cookies are set and no analytics services or external content are used.",
+  cam:"Camera", camT:"The camera is only opened when you tap \"Take photo\", and only through your device's camera function. The photo stays on your device.",
+  em:"E-mail", emT:"If you e-mail us, we use your details solely to process your request. Our mailbox is hosted by Google (Gmail, Google Ireland Ltd.). Data may be transferred to the USA on the basis of the EU-US Data Privacy Framework.",
+  rights:"Your rights", rightsT:"Access, rectification, erasure, restriction, objection and the right to lodge a complaint with a supervisory authority (Art. 15 to 21, 77 GDPR). Contact: see legal notice.", back:"Back to the tool"}
+};
+function show(l){ const t=T[l]; document.documentElement.lang=l; try{ localStorage.setItem("xdc_lang",l); }catch(e){}
+  document.querySelectorAll("#lang button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.l===l));
+  document.getElementById("h").textContent=t.h;
+  const mail=D("m"), a=document.createElement("a"); a.href="mailto:"+mail; a.textContent=mail;
+  document.getElementById("imp").innerHTML=`<h2>${t.imp}</h2><h3>${t.law}</h3><address>${D("f")}\n${D("n")}\n${D("s")}\n${D("o")}\n${t.country}</address>
+    <h3>${t.contact}</h3><p>${t.mail}: <span id="ml"></span></p><h3>${t.resp}</h3><p>${D("n")}, ${t.respT}</p><h3>${t.odr}</h3><p class="muted">${t.odrT}</p><h3>${t.liab}</h3><p class="muted">${t.liabT}</p>`;
+  document.getElementById("ml").appendChild(a);
+  document.getElementById("ds").innerHTML=`<h2>${t.ds}</h2><h3>${t.ctrl}</h3><p>${D("n")}, ${t.ctrlT}</p><h3>${t.host}</h3><p>${t.hostT} <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">${t.hostL}</a></p>
+    <h3>${t.tool}</h3><p>${t.toolT}</p><h3>${t.cam}</h3><p>${t.camT}</p><h3>${t.em}</h3><p>${t.emT}</p><h3>${t.rights}</h3><p>${t.rightsT}</p>`;
+  document.getElementById("back").textContent=t.back; }
+document.getElementById("lang").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b) show(b.dataset.l); });
+let l="de"; try{ l=localStorage.getItem("xdc_lang")||l; }catch(e){} if(!T[l]) l=(navigator.language||"en").slice(0,2); if(!T[l]) l="en"; show(l);
+</script>
+</body>
+</html>
