@@ -1,0 +1,250 @@
+// XDC - app.js | App-Steuerung: Screens, Projekt, Chart-Interaktion, Import/Export.
+(function () {
+  'use strict';
+
+  const M = window.XDCModel, U = window.XDCUnits, O = window.XDCOverlay;
+  const $ = id => document.getElementById(id);
+
+  let project = M.load();
+  let settings = M.loadSettings();
+  let crosshair = null;
+  let session = null; // {src, sourceName} bzw. nach Entzerrung {rect, calib}
+
+  // ---------- Theme ----------
+  function applyTheme() {
+    document.documentElement.dataset.theme = settings.theme;
+    $('btn-theme').textContent = settings.theme === 'dark' ? 'Hell' : 'Dunkel';
+    renderHome();
+  }
+  function themeColors() {
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      bg: cs.getPropertyValue('--chart-bg').trim(),
+      grid: cs.getPropertyValue('--chart-grid').trim(),
+      axis: cs.getPropertyValue('--chart-axis').trim(),
+      text: cs.getPropertyValue('--ink').trim(),
+      muted: cs.getPropertyValue('--muted').trim()
+    };
+  }
+
+  // ---------- Screens ----------
+  function show(name) {
+    for (const s of document.querySelectorAll('.screen')) s.hidden = true;
+    $(name).hidden = false;
+    if (name === 'scr-home') renderHome();
+    if (name === 'scr-calib') calibViewer.fit();
+    if (name === 'scr-trace') traceViewer.fit();
+  }
+
+  // ---------- Home: Chart + Liste ----------
+  function renderHome() {
+    const canvas = $('chart');
+    O.render(canvas, project, settings, themeColors(), crosshair);
+    renderReadout();
+    renderList();
+    $('btn-unit').textContent = settings.unitPower;
+    for (const b of document.querySelectorAll('[data-mode]')) {
+      b.classList.toggle('active', b.dataset.mode === settings.mode);
+    }
+    $('empty-hint').hidden = project.curves.length > 0;
+    $('chart-card').hidden = project.curves.length === 0;
+  }
+
+  function fmt(v, d) { return v == null ? '-' : v.toFixed(d == null ? 1 : d).replace('.', ','); }
+
+  function renderReadout() {
+    const el = $('readout');
+    if (crosshair == null) { el.innerHTML = ''; el.hidden = true; return; }
+    const ref = project.curves.find(c => c.ref && c.visible);
+    let html = `<div class="ro-rpm">${Math.round(crosshair)} U/min</div>`;
+    for (const c of project.curves) {
+      if (!c.visible) continue;
+      if (settings.mode === 'P' && c.kind !== 'P') continue;
+      if (settings.mode === 'M' && c.kind !== 'M') continue;
+      let v = U.valueAt(c.points, crosshair);
+      const unit = c.kind === 'P' ? settings.unitPower : 'Nm';
+      if (v != null && c.kind === 'P') v = U.convert(v, c.unit, settings.unitPower);
+      let diff = '';
+      if (ref && ref.id !== c.id && ref.kind === c.kind && v != null) {
+        let rv = U.valueAt(ref.points, crosshair);
+        if (rv != null) {
+          if (c.kind === 'P') rv = U.convert(rv, ref.unit, settings.unitPower);
+          const d = v - rv;
+          diff = ` <span class="ro-diff">(${d >= 0 ? '+' : ''}${fmt(d)})</span>`;
+        }
+      }
+      html += `<div class="ro-row"><span class="dot" style="background:${c.color}"></span>` +
+        `<span class="ro-name">${esc(c.label)}</span><span class="ro-val">${fmt(v)} ${unit}${diff}</span></div>`;
+    }
+    el.innerHTML = html; el.hidden = false;
+  }
+
+  function esc(s) { return String(s).replace(/[<>&"]/g, ch => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[ch])); }
+
+  function renderList() {
+    const el = $('curve-list');
+    el.innerHTML = '';
+    for (const c of project.curves) {
+      const pk = U.peak(c.points);
+      const unit = c.kind === 'P' ? settings.unitPower : 'Nm';
+      const pkv = c.kind === 'P' ? U.convert(pk.value, c.unit, settings.unitPower) : pk.value;
+      const li = document.createElement('div');
+      li.className = 'curve-item' + (c.visible ? '' : ' off');
+      li.innerHTML =
+        `<button class="dot-btn" title="Farbe ändern" style="background:${c.color}"></button>` +
+        `<div class="ci-main"><div class="ci-name">${esc(c.label)} <span class="badge">${c.kind === 'P' ? 'Leistung' : 'Drehmoment'}</span></div>` +
+        `<div class="ci-sub">max ${fmt(pkv)} ${unit} @ ${Math.round(pk.rpm)} U/min</div></div>` +
+        `<button class="ib" data-a="ref" title="Referenz für Differenz">${c.ref ? '★' : '☆'}</button>` +
+        `<button class="ib" data-a="vis" title="Ein-/Ausblenden">${c.visible ? '👁' : '◌'}</button>` +
+        `<button class="ib" data-a="edit" title="Umbenennen">✎</button>` +
+        `<button class="ib" data-a="del" title="Löschen">✕</button>`;
+      li.querySelector('.dot-btn').addEventListener('click', () => {
+        const i = M.PALETTE.indexOf(c.color);
+        c.color = M.PALETTE[(i + 1) % M.PALETTE.length];
+        persist();
+      });
+      li.querySelector('[data-a=ref]').addEventListener('click', () => { M.setRef(project, c.id); persist(); });
+      li.querySelector('[data-a=vis]').addEventListener('click', () => { c.visible = !c.visible; persist(); });
+      li.querySelector('[data-a=edit]').addEventListener('click', () => {
+        const n = prompt('Name der Kurve:', c.label);
+        if (n && n.trim()) { c.label = n.trim(); persist(); }
+      });
+      li.querySelector('[data-a=del]').addEventListener('click', () => {
+        if (confirm(`Kurve "${c.label}" löschen?`)) { M.removeCurve(project, c.id); persist(); }
+      });
+      el.appendChild(li);
+    }
+  }
+
+  function persist() { M.save(project); renderHome(); }
+
+  // ---------- Chart-Crosshair ----------
+  (function bindChart() {
+    const cv = $('chart');
+    function move(ev) {
+      const r = cv.getBoundingClientRect();
+      const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+      crosshair = O.rpmAt(cv, project, settings, x);
+      renderHome();
+      if (ev.cancelable && ev.touches) ev.preventDefault();
+    }
+    cv.addEventListener('pointermove', move);
+    cv.addEventListener('pointerdown', move);
+    cv.addEventListener('pointerleave', () => { crosshair = null; renderHome(); });
+    cv.addEventListener('touchmove', move, { passive: false });
+  })();
+
+  // ---------- Import ----------
+  async function handleFile(file) {
+    if (!file) return;
+    try {
+      let pageNo = 1;
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      if (isPdf && !window.pdfjsLib) {
+        alert('PDF-Modul fehlt (app/vendor/pdf.min.js). Alternativ: Screenshot der PDF-Seite als Bild laden.');
+        return;
+      }
+      let res = await window.XDCCapture.loadFile(file, pageNo);
+      if (res.pages > 1) {
+        const p = parseInt(prompt(`PDF hat ${res.pages} Seiten. Welche Seite?`, '1') || '1', 10);
+        if (p > 1) res = await window.XDCCapture.loadFile(file, p);
+      }
+      session = { sourceName: file.name.replace(/\.[^.]+$/, '') };
+      calibrate.start(res.canvas, session.sourceName);
+      show('scr-calib');
+    } catch (err) {
+      alert('Datei konnte nicht geladen werden: ' + err.message);
+    }
+  }
+  $('file-foto').addEventListener('change', ev => { handleFile(ev.target.files[0]); ev.target.value = ''; });
+  $('file-bild').addEventListener('change', ev => { handleFile(ev.target.files[0]); ev.target.value = ''; });
+
+  // ---------- Export ----------
+  function download(name, href) {
+    const a = document.createElement('a');
+    a.href = href; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  $('btn-png').addEventListener('click', () => {
+    download('xdc-vergleich.png', O.exportPNG(project, settings, themeColors()));
+  });
+  $('btn-csv').addEventListener('click', () => {
+    const csv = O.buildCSV(project, settings);
+    download('xdc-vergleich.csv', 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv));
+  });
+  $('btn-clear').addEventListener('click', () => {
+    if (project.curves.length && confirm('Alle Kurven löschen?')) {
+      project = M.blank(); persist();
+    }
+  });
+
+  // ---------- Einstellungen ----------
+  $('btn-unit').addEventListener('click', () => {
+    settings.unitPower = settings.unitPower === 'PS' ? 'kW' : 'PS';
+    M.saveSettings(settings); renderHome();
+  });
+  for (const b of document.querySelectorAll('[data-mode]')) {
+    b.addEventListener('click', () => { settings.mode = b.dataset.mode; M.saveSettings(settings); renderHome(); });
+  }
+  $('btn-theme').addEventListener('click', () => {
+    settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
+    M.saveSettings(settings); applyTheme();
+  });
+
+  // ---------- Kalibrier-Screen ----------
+  const calibViewer = new window.XDCViewer($('calib-canvas'), {});
+  const calibrate = new window.XDCCalibrate(calibViewer, {
+    profile: $('cal-profile'), rpmL: $('cal-rpml'), rpmR: $('cal-rpmr'),
+    leftUnit: $('cal-unit'), leftTop: $('cal-top'), leftBottom: $('cal-bottom'),
+    hint: $('cal-hint'), go: $('cal-go'), status: $('cal-status')
+  }, result => {
+    session.rect = result.rect; session.calib = result.calib;
+    traceUI.start(result.rect, result.calib, result.sourceName);
+    show('scr-trace');
+  });
+  $('cal-unit').addEventListener('change', ev => { ev.target.dataset.touched = '1'; });
+  $('cal-back').addEventListener('click', () => show('scr-home'));
+
+  // ---------- Trace-Screen ----------
+  const traceViewer = new window.XDCViewer($('trace-canvas'), {});
+  const traceUI = new window.XDCTraceUI(traceViewer, {
+    toolTap: $('tr-tap'), toolDraw: $('tr-draw'), toolErase: $('tr-erase'), toolNm: $('tr-nm'),
+    name: $('tr-name'), kind: $('tr-kind'), scaleSel: $('tr-scale'),
+    apply: $('tr-apply'), discard: $('tr-discard'), done: $('tr-done'),
+    status: $('tr-status'), nmInfo: $('tr-nminfo')
+  }, {
+    onCurve: data => { M.addCurve(project, data); M.save(project); },
+    onFinish: () => { session = null; show('scr-home'); }
+  });
+  // Typ-Wechsel setzt sinnvolle Skala vor
+  $('tr-kind').addEventListener('change', ev => {
+    $('tr-scale').value = ev.target.value === 'M' ? 'nm' : 'left';
+  });
+  $('tr-back').addEventListener('click', () => show('scr-calib'));
+
+  // Bei Groessenwechsel Chart in neuer Aufloesung rendern
+  let resizeT = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(renderHome, 120);
+  });
+
+  // ---------- PWA ----------
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline-Cache optional */ });
+  }
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+  }
+
+  applyTheme();
+  show('scr-home');
+
+  // Test-Hooks (nur fuer automatisierte Pruefung, keine UI-Funktion)
+  window.XDCApp = {
+    calibrate, traceUI, show,
+    getProject: () => project,
+    resetProject: () => { project = M.blank(); persist(); },
+    startCalib: (canvas, name) => { session = { sourceName: name }; calibrate.start(canvas, name); show('scr-calib'); }
+  };
+})();
