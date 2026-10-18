@@ -241,3 +241,13 @@ label.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer;
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
 }
 .toast[hidden] { display: none; }
+
+/* ---------- Zwei-Tipp-Bestaetigung / Umbenennen ---------- */
+.ib.danger, .btn.danger {
+  background: #dc2626; color: #fff; border-color: #dc2626;
+  border-radius: 7px; font-size: 13px; font-weight: 700; padding: 6px 8px; min-width: 76px;
+}
+.ci-edit {
+  font: inherit; font-size: 15px; font-weight: 700; width: 100%; padding: 4px 6px;
+  border: 1px solid var(--accent); border-radius: 6px; background: var(--card); color: var(--ink);
+}

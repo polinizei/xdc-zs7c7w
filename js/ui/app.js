@@ -38,6 +38,11 @@
   }
 
   // ---------- Home: Chart + Liste ----------
+  function renderChart() {
+    O.render($('chart'), project, settings, themeColors(), crosshair);
+    renderReadout();
+  }
+
   function renderHome() {
     const canvas = $('chart');
     O.render(canvas, project, settings, themeColors(), crosshair);
@@ -106,15 +111,42 @@
       });
       li.querySelector('[data-a=ref]').addEventListener('click', () => { M.setRef(project, c.id); persist(); });
       li.querySelector('[data-a=vis]').addEventListener('click', () => { c.visible = !c.visible; persist(); });
+      // Umbenennen direkt in der Liste (keine Browser-Dialoge: in Android-App-Ansichten wirkungslos)
       li.querySelector('[data-a=edit]').addEventListener('click', () => {
-        const n = prompt('Name der Kurve:', c.label);
-        if (n && n.trim()) { c.label = n.trim(); persist(); }
+        const nameEl = li.querySelector('.ci-name');
+        nameEl.innerHTML = `<input class="ci-edit" value="${esc(c.label)}" aria-label="Name der Kurve">`;
+        const inp = nameEl.querySelector('input');
+        inp.focus(); inp.select();
+        const done = save => {
+          if (save && inp.value.trim()) c.label = inp.value.trim();
+          persist();
+        };
+        inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') done(true); if (ev.key === 'Escape') done(false); });
+        inp.addEventListener('blur', () => done(true));
       });
-      li.querySelector('[data-a=del]').addEventListener('click', () => {
-        if (confirm(`Kurve "${c.label}" löschen?`)) { M.removeCurve(project, c.id); persist(); }
+      // Loeschen in zwei Tipps: erster Tipp scharf schalten ("Löschen?"), zweiter loescht
+      const del = li.querySelector('[data-a=del]');
+      if (armed === c.id) { del.textContent = 'Löschen?'; del.classList.add('danger'); }
+      del.addEventListener('click', () => {
+        if (armed === c.id) { armed = null; M.removeCurve(project, c.id); persist(); toast(`"${c.label}" gelöscht`); return; }
+        arm(c.id);
       });
       el.appendChild(li);
     }
+  }
+
+  // Zwei-Tipp-Bestaetigung: nach 3 s ohne zweiten Tipp zurueck
+  let armed = null, armT = null;
+  function arm(id) {
+    armed = id;
+    clearTimeout(armT);
+    armT = setTimeout(() => { armed = null; renderList(); renderClear(); }, 3000);
+    renderList(); renderClear();
+  }
+  function renderClear() {
+    const b = $('btn-clear');
+    b.textContent = armed === 'ALL' ? 'Wirklich alle löschen? Nochmal tippen' : 'Alle Kurven löschen';
+    b.classList.toggle('danger', armed === 'ALL');
   }
 
   function persist() { M.save(project); renderHome(); }
@@ -126,12 +158,12 @@
       const r = cv.getBoundingClientRect();
       const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
       crosshair = O.rpmAt(cv, project, settings, x);
-      renderHome();
+      renderChart();
       if (ev.cancelable && ev.touches) ev.preventDefault();
     }
     cv.addEventListener('pointermove', move);
     cv.addEventListener('pointerdown', move);
-    cv.addEventListener('pointerleave', () => { crosshair = null; renderHome(); });
+    cv.addEventListener('pointerleave', () => { crosshair = null; renderChart(); });
     cv.addEventListener('touchmove', move, { passive: false });
   })();
 
@@ -141,7 +173,7 @@
   function handleFiles(list) {
     const files = Array.from(list || []).filter(Boolean);
     if (!files.length) return;
-    queue.files = files; queue.pos = 0; queue.added = 0;
+    queue.files = files.map(f => ({ file: f, page: 1 })); queue.pos = 0; queue.added = 0;
     nextFile();
   }
 
@@ -153,10 +185,8 @@
       if (n > 1) toast(`${n} Bilder bearbeitet, ${queue.added} Kurven übernommen.`);
       return;
     }
-    const f = queue.files[queue.pos];
-    const total = queue.files.length;
-    analyse.setQueueInfo(total > 1 ? `Bild ${queue.pos + 1} von ${total}` : '', total - queue.pos - 1);
-    handleFile(f, queue.pos + 1);
+    setQueueInfo();
+    handleFile(queue.files[queue.pos], queue.pos + 1);
   }
 
   function toast(text) {
@@ -165,23 +195,33 @@
     clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 4000);
   }
 
-  async function handleFile(file, nr) {
+  function setQueueInfo() {
+    const total = queue.files.length;
+    analyse.setQueueInfo(total > 1 ? `Bild ${queue.pos + 1} von ${total}` : '', total - queue.pos - 1);
+  }
+
+  async function handleFile(item, nr) {
+    const file = item && item.file;
     if (!file) return;
     try {
-      let pageNo = 1;
+      const pageNo = item.page;
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
       if (isPdf && !window.pdfjsLib) {
-        alert('PDF-Modul fehlt (app/vendor/pdf.min.js). Alternativ: Screenshot der PDF-Seite als Bild laden.');
-        return;
+        throw new Error('PDF-Modul fehlt, bitte Screenshot der Seite laden');
       }
-      let res = await window.XDCCapture.loadFile(file, pageNo);
-      if (res.pages > 1) {
-        const p = parseInt(prompt(`PDF hat ${res.pages} Seiten. Welche Seite?`, '1') || '1', 10);
-        if (p > 1) res = await window.XDCCapture.loadFile(file, p);
+      const res = await window.XDCCapture.loadFile(file, pageNo);
+      // Mehrseitiges PDF: weitere Seiten direkt hinter dieser in die Warteschlange (keine Seitenabfrage)
+      if (res.pages > 1 && pageNo === 1 && !item.expanded) {
+        item.expanded = true;
+        const more = [];
+        for (let pg = 2; pg <= res.pages; pg++) more.push({ file, page: pg, expanded: true });
+        queue.files.splice(queue.pos + 1, 0, ...more);
+        setQueueInfo();
       }
       // Kamera-/Galerie-Namen sind nichtssagend: bei mehreren Bildern "Bild N", sonst leer
       const generic = /^(image|IMG|PXL|Screenshot|photo|DSC)[-_]?\d/i.test(file.name);
-      const name = generic ? (queue.files.length > 1 ? `Bild ${nr}` : '') : file.name.replace(/\.[^.]+$/, '');
+      let name = generic ? (queue.files.length > 1 ? `Bild ${nr}` : '') : file.name.replace(/\.[^.]+$/, '');
+      if (res.pages > 1) name = `${name || 'PDF'} S.${pageNo}`;
       show('scr-analyse');
       analyse.start(res.canvas, name, res.words);
     } catch (err) {
@@ -207,9 +247,14 @@
     download('xdc-vergleich.csv', 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv));
   });
   $('btn-clear').addEventListener('click', () => {
-    if (project.curves.length && confirm('Alle Kurven löschen?')) {
-      project = M.blank(); persist();
+    if (!project.curves.length) return;
+    if (armed === 'ALL') {
+      armed = null; clearTimeout(armT);
+      project = M.blank(); persist(); renderClear();
+      toast('Alle Kurven gelöscht');
+      return;
     }
+    arm('ALL');
   });
 
   // ---------- Einstellungen ----------
