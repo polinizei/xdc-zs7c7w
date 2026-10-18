@@ -1,5 +1,5 @@
 // XDC - sw.js | Offline-Cache (Cache-first). Version anheben = neuer Cache.
-const XDC_CACHE = 'xdc-v0.3.0';
+const XDC_CACHE = 'xdc-v0.4.0';
 const FILES = [
   './',
   './index.html',
@@ -49,9 +49,20 @@ self.addEventListener('activate', ev => {
   );
 });
 
+// Seite und App-Code: Netz zuerst (Updates sofort sichtbar), offline aus dem Cache.
+// Grosse unveraenderliche Bibliotheken (vendor/): Cache zuerst.
 self.addEventListener('fetch', ev => {
   if (ev.request.method !== 'GET') return;
+  const url = new URL(ev.request.url);
+  if (url.origin !== location.origin) return;
+  if (url.pathname.includes('/vendor/')) {
+    ev.respondWith(caches.match(ev.request).then(hit => hit || fetch(ev.request)));
+    return;
+  }
   ev.respondWith(
-    caches.match(ev.request).then(hit => hit || fetch(ev.request))
+    fetch(ev.request).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(XDC_CACHE).then(c => c.put(ev.request, copy)); }
+      return res;
+    }).catch(() => caches.match(ev.request))
   );
 });

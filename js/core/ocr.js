@@ -17,7 +17,7 @@
         logger: () => {}
       }).then(async w => {
         await w.setParameters({
-          tessedit_char_whitelist: '0123456789-.,',
+          tessedit_char_whitelist: '0123456789-., ',
           tessedit_pageseg_mode: '11', // verstreuter Text
           user_defined_dpi: '150'
         });
@@ -43,6 +43,31 @@
     return out;
   }
 
+  // Lange dunkle waagerechte/senkrechte Laeufe (Rahmen, Gitter, Achslinien) weiss machen.
+  // Ziffern sind kurz (Strichlaenge < ~1,5 Zeichenhoehen), Linien laufen weit durch.
+  function removeLines(G, w, h) {
+    const dark = i => G[i] < 140;
+    const kill = new Uint8Array(w * h);
+    const minLen = 34;
+    for (let y = 0; y < h; y++) {
+      let s = -1;
+      for (let x = 0; x <= w; x++) {
+        const d = x < w && dark(y * w + x);
+        if (d && s < 0) s = x;
+        if (!d && s >= 0) { if (x - s >= minLen) for (let k = s; k < x; k++) kill[y * w + k] = 1; s = -1; }
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let s = -1;
+      for (let y = 0; y <= h; y++) {
+        const d = y < h && dark(y * w + x);
+        if (d && s < 0) s = y;
+        if (!d && s >= 0) { if (y - s >= minLen) for (let k = s; k < y; k++) kill[k * w + x] = 1; s = -1; }
+      }
+    }
+    for (let i = 0; i < w * h; i++) if (kill[i]) G[i] = 255;
+  }
+
   // Streifen normiert auf lokale Papierhelligkeit (Farbstich/Verlauf weg), per Perzentil gespreizt, hochskaliert.
   function prepStrip(src, x, y, w, h, scale) {
     x = Math.max(0, Math.round(x)); y = Math.max(0, Math.round(y));
@@ -57,10 +82,20 @@
     for (let i = 0; i < n; i += 5) s.push(norm[i]);
     s.sort((a, b) => a - b);
     const lo = s[Math.floor(s.length * 0.005)], hi = Math.max(lo + 0.05, s[Math.floor(s.length * 0.6)] * 0.97);
+    const G = new Float32Array(n);
+    for (let i = 0; i < n; i++) G[i] = Math.max(0, Math.min(255, (norm[i] - lo) / (hi - lo) * 255));
+    removeLines(G, w, h);
+    // Zweite Spreizung auf die verbliebenen Zeichen (vorher bestimmten Rahmenbalken das Schwarz)
+    const ink = [];
+    for (let i = 0; i < n; i += 2) if (G[i] < 225) ink.push(G[i]);
+    if (ink.length > 50) {
+      ink.sort((a, b) => a - b);
+      const lo2 = ink[Math.floor(ink.length * 0.04)], hi2 = 235;
+      if (hi2 - lo2 > 20) for (let i = 0; i < n; i++) G[i] = Math.max(0, Math.min(255, (G[i] - lo2) / (hi2 - lo2) * 255));
+    }
     const out = new ImageData(w, h);
     for (let i = 0; i < n; i++) {
-      const g = Math.max(0, Math.min(255, (norm[i] - lo) / (hi - lo) * 255));
-      out.data[i * 4] = out.data[i * 4 + 1] = out.data[i * 4 + 2] = g; out.data[i * 4 + 3] = 255;
+      out.data[i * 4] = out.data[i * 4 + 1] = out.data[i * 4 + 2] = G[i]; out.data[i * 4 + 3] = 255;
     }
     const c1 = document.createElement('canvas'); c1.width = w; c1.height = h;
     c1.getContext('2d').putImageData(out, 0, 0);
@@ -86,16 +121,20 @@
     return words;
   }
 
-  const NUM_PARAMS = { tessedit_char_whitelist: '0123456789-.,', tessedit_pageseg_mode: '11' };
+  // Leerzeichen MUSS in der Liste stehen, sonst gibt Tesseract keine Wortgrenzen aus
+  // ("55006500700075008000" als ein Wort mit Konfidenz 0).
+  const NUM_PARAMS = { tessedit_char_whitelist: '0123456789-., ', tessedit_pageseg_mode: '11', preserve_interword_spaces: '1' };
   const UNIT_PARAMS = { tessedit_char_whitelist: '[]()PSKWkwNmM/', tessedit_pageseg_mode: '11' };
 
   function stripBoxes(rect, frame) {
     const fw = frame.x1 - frame.x0, fh = frame.y1 - frame.y0;
+    // Streifen reichen bewusst auch ins Rahmeninnere: liegt der erkannte Rahmen eine Zeile daneben
+    // (z.B. Fensterkante statt Diagrammkante), bleiben die Beschriftungen trotzdem im Streifen.
     return {
-      oben: [frame.x0 - fw * 0.04, frame.y0 - fh * 0.1, fw * 1.08, fh * 0.11],
-      links: [0, frame.y0 - fh * 0.04, frame.x0 + fw * 0.025, fh * 1.08],
-      rechts: [frame.x1 - fw * 0.07, frame.y0 - fh * 0.04, rect.width - frame.x1 + fw * 0.07, fh * 1.08],
-      unten: [frame.x0 - fw * 0.04, frame.y1 - fh * 0.01, fw * 1.08, fh * 0.1],
+      oben: [frame.x0 - fw * 0.04, frame.y0 - fh * 0.1, fw * 1.08, fh * 0.18],
+      links: [0, frame.y0 - fh * 0.04, frame.x0 + fw * 0.06, fh * 1.08],
+      rechts: [frame.x1 - fw * 0.09, frame.y0 - fh * 0.04, rect.width - frame.x1 + fw * 0.09, fh * 1.08],
+      unten: [frame.x0 - fw * 0.04, frame.y1 - fh * 0.08, fw * 1.08, fh * 0.18],
       // Einheiten-Kopfzeilen ueber den Skalen
       kopfL: [0, frame.y0 - fh * 0.09, frame.x0 + fw * 0.02, fh * 0.1],
       kopfR: [frame.x1 - fw * 0.07, frame.y0 - fh * 0.2, rect.width - frame.x1 + fw * 0.07, fh * 0.35]
@@ -141,6 +180,6 @@
     return out;
   }
 
-  const api = { readAxes, readUnits, getWorker, prepStrip };
+  const api = { readAxes, readUnits, getWorker, prepStrip, stripBoxes, baseScale };
   global.XDCOcr = api;
 })(typeof window !== 'undefined' ? window : globalThis);

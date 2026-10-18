@@ -123,7 +123,11 @@
         slope = Math.max(-opts.slopeMax, Math.min(opts.slopeMax, 0.7 * slope + 0.3 * (ny - y) * (gap ? 1 / (gap + 1) : 1)));
         y = ny; ys[x] = y; gap = 0;
       } else {
-        gap++;
+        // Fehlstelle auf einer erkannten Gitterlinie (Kurve laeuft auf dem Gitter) kostet kaum Luecke
+        const gm = img._xdcGridMask, yi = Math.round(pred);
+        const onGrid = gm && yi >= 1 && yi < img.height - 1 &&
+          (gm[yi * img.width + x] || gm[(yi - 1) * img.width + x] || gm[(yi + 1) * img.width + x]);
+        gap += onGrid ? 0.15 : 1;
         y = pred;
         if (gap > opts.gapMax) break;
       }

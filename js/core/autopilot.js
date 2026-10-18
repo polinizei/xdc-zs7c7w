@@ -41,6 +41,63 @@
     });
   }
 
+  // Zeile mit der staerksten waagerechten Linie (auch punktiert) zwischen ya..yb im Rahmenbereich x0..x1
+  function bestLineRow(cv, x0, x1, ya, yb) {
+    const w = cv.width;
+    ya = Math.max(4, Math.round(ya)); yb = Math.min(cv.height - 5, Math.round(yb));
+    if (yb <= ya) return null;
+    const id = cv.getContext('2d').getImageData(0, ya - 4, w, yb - ya + 9).data;
+    const L = (x, y) => { const i = ((y - ya + 4) * w + x) * 4; return 0.299 * id[i] + 0.587 * id[i + 1] + 0.114 * id[i + 2]; };
+    let best = null;
+    const mean = [];
+    for (let y = ya - 4; y <= yb + 4; y++) {
+      let s = 0, k = 0;
+      for (let x = Math.round(x0); x <= Math.round(x1); x += 2) { s += L(x, y); k++; }
+      mean[y] = s / Math.max(1, k);
+    }
+    let step = null;
+    for (let y = ya; y <= yb; y++) {
+      let n = 0, tot = 0;
+      for (let x = Math.round(x0); x <= Math.round(x1); x += 2) {
+        const c = L(x, y), up = Math.max(L(x, y - 3), L(x, y - 4)), dn = Math.max(L(x, y + 3), L(x, y + 4));
+        if (Math.min(up, dn) - c > 10) n++;
+        tot++;
+      }
+      const f = n / Math.max(1, tot);
+      if (!best || f > best.f) best = { y, f };
+      // verschwommene Kante: Helligkeitsstufe zwischen Beschriftungsband und Diagrammflaeche
+      const st = Math.abs(mean[y - 3] - mean[y + 3]);
+      if (!step || st > step.s) step = { y, s: st };
+    }
+    if (best && best.f > 0.2) return best.y;
+    return step && step.s > 25 ? step.y : null;
+  }
+
+  // Rahmen an die Beschriftung nachfuehren: liegen die Drehzahl-Zahlen INNERHALB des Rahmens (Rahmen wurde an
+  // einer Fensterkante statt an der Diagrammkante erkannt), Kante auf die naechste Linie hinter der Beschriftung.
+  function refineFrame(R, ax) {
+    const f = R.frame, fh = f.y1 - f.y0;
+    if (!ax.x) return false;
+    const inl = [].concat(...(ax.xFits || [ax.x]).map(s => s.inliers));
+    const top = inl.filter(it => it.cy < (f.y0 + f.y1) / 2), bot = inl.filter(it => it.cy >= (f.y0 + f.y1) / 2);
+    let changed = false;
+    if (top.length >= 3) {
+      const lb = Math.max(...top.map(it => it.cy + it.h / 2));
+      if (lb > f.y0 + fh * 0.003) {
+        const y = bestLineRow(R.canvas, f.x0, f.x1, lb + 1, lb + fh * 0.08);
+        if (y != null) { f.y0 = y; changed = true; }
+      }
+    }
+    if (bot.length >= 3) {
+      const lt = Math.min(...bot.map(it => it.cy - it.h / 2));
+      if (lt < f.y1 - fh * 0.003) {
+        const y = bestLineRow(R.canvas, f.x0, f.x1, lt - fh * 0.08, lt - 1);
+        if (y != null) { f.y1 = y; changed = true; }
+      }
+    }
+    return changed;
+  }
+
   function powerScale(ax) {
     if (ax.ps) return { a: ax.ps.a, b: ax.ps.b, unit: 'PS', sure: true };
     if (ax.kw) return { a: ax.kw.a, b: ax.kw.b, unit: 'kW', sure: true };
@@ -99,6 +156,8 @@
     }
     res.words = words;
     res.units = units;
+    // Kalibrierung bleibt gueltig (gleiche entzerrte Koordinaten), nur der Kurvenbereich wird korrigiert
+    if (refineFrame(R, ax)) res.notes.push('Rahmen an Beschriftung nachgeführt');
     res.axes = ax;
     res.notes.push(...ax.notes);
     const ps = powerScale(ax);
@@ -122,6 +181,12 @@
     res.curves = cv.curves;
     res.cal.nm = cv.nmScale || cal.nm;
     res.notes.push(...cv.notes);
+    if (cv.unitConfirmed && cal.power && !cal.power.sure) {
+      cal.power.sure = true;
+      res.steps.power = 'ok';
+      res.notes = res.notes.filter(n => !/Einheit der Leistungsskala unsicher/.test(n));
+      res.notes.push(`Einheit ${cal.power.unit} über die Drehmoment-Skala bestätigt`);
+    }
     res.steps.curves = cv.curves.length ? 'ok' : 'fehlt';
     return res;
   }

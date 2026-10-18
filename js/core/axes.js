@@ -38,7 +38,7 @@
       const b = (B.v - A.v) / dp;
       if (Math.sign(b) !== sign) continue;
       const a = A.v - b * A[pos];
-      const inl = items.filter(it => Math.abs((it.v - a) / b - it[pos]) < Math.max(6, it.h * 0.8));
+      const inl = items.filter(it => Math.abs((it.v - a) / b - it[pos]) < Math.max(4, it.h * 0.45));
       const distinct = new Set(inl.map(it => it.v)).size;
       if (distinct < minInl) continue;
       const span = Math.max(...inl.map(it => it[pos])) - Math.min(...inl.map(it => it[pos]));
@@ -93,11 +93,12 @@
     units = units || [];
     const items = toItems(words);
     const fw = frame.x1 - frame.x0, fh = frame.y1 - frame.y0;
-    const top = items.filter(it => it.cy < frame.y0 + fh * 0.02 && it.cy > frame.y0 - fh * 0.12 && it.cx > frame.x0 - fw * 0.03 && it.cx < frame.x1 + fw * 0.03);
-    const bot = items.filter(it => it.cy > frame.y1 - fh * 0.02 && it.cy < frame.y1 + fh * 0.12 && it.cx > frame.x0 - fw * 0.03 && it.cx < frame.x1 + fw * 0.03);
-    const left = items.filter(it => it.cx < frame.x0 + fw * 0.02 && it.cy > frame.y0 - fh * 0.03 && it.cy < frame.y1 + fh * 0.03);
-    // rechts auch knapp innerhalb (eingerueckte Nm-Skala)
-    const right = items.filter(it => it.cx > frame.x1 - fw * 0.06 && it.cy > frame.y0 - fh * 0.03 && it.cy < frame.y1 + fh * 0.03);
+    // Baender reichen ins Rahmeninnere (Rahmen kann eine Zeile daneben liegen); RANSAC trennt Fremdzahlen ab
+    const top = items.filter(it => it.cy < frame.y0 + fh * 0.08 && it.cy > frame.y0 - fh * 0.12 && it.cx > frame.x0 - fw * 0.03 && it.cx < frame.x1 + fw * 0.03);
+    const bot = items.filter(it => it.cy > frame.y1 - fh * 0.08 && it.cy < frame.y1 + fh * 0.12 && it.cx > frame.x0 - fw * 0.03 && it.cx < frame.x1 + fw * 0.03);
+    const left = items.filter(it => it.cx < frame.x0 + fw * 0.06 && it.cy > frame.y0 - fh * 0.03 && it.cy < frame.y1 + fh * 0.03);
+    // rechts auch innerhalb (eingerueckte Nm-Skala)
+    const right = items.filter(it => it.cx > frame.x1 - fw * 0.09 && it.cy > frame.y0 - fh * 0.03 && it.cy < frame.y1 + fh * 0.03);
 
     const res = { x: null, ps: null, kw: null, nm: null, unknown: null, notes: [] };
     // X: oben und unten getrennt anpassen, beste nehmen (unten kann ein anderes Panel sein)
@@ -105,6 +106,7 @@
       .filter(s => s.a + s.b * frame.x0 > 0 && s.a + s.b * frame.x1 < 30000);
     xs.sort((p, q) => q.n - p.n || p.rmsPx - q.rmsPx);
     if (xs[0]) res.x = xs[0];
+    res.xFits = xs; // beide Zeilen (oben/unten) fuer die Rahmen-Nachfuehrung
 
     const L = multiScales(left, 'cy', -1, 3).map(s => Object.assign(s, { side: 'left' }));
     const R = multiScales(right, 'cy', -1, 3).map(s => Object.assign(s, { side: 'right' }));

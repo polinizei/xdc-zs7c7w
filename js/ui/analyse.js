@@ -16,6 +16,7 @@
     this.els = els; this.cb = cb; // cb: {onAccept(curves), onBack()}
     this.viewer = new global.XDCViewer(els.canvas, { bg: '#1c1f23' });
     this.mode = 'run';
+    this.enhanced = true;
     this.src = null; this.res = null; this.corners = null; this.override = {};
     this.sel = new Set(); this.hi = -1;
     const self = this, v = this.viewer;
@@ -48,6 +49,36 @@
     els.barApply.addEventListener('click', () => self._valueEntered());
     els.barValue.addEventListener('keydown', ev => { if (ev.key === 'Enter') self._valueEntered(); });
   }
+
+  // Verstaerkte Ansicht: Hintergrund auf Weiss normiert (Farbstich/Verlauf weg), Abweichung der Linien
+  // verstaerkt (wirkt wie Saettigung + Kontrast, aber nur auf Linien, nicht auf Hintergrund und Farbstich).
+  function enhance(cv) {
+    const w = cv.width, h = cv.height;
+    const id = cv.getContext('2d').getImageData(0, 0, w, h);
+    const diff = global.XDCTrace.features({ width: w, height: h, data: id.data.slice() });
+    const out = new ImageData(w, h);
+    for (let i = 0; i < w * h; i++) {
+      const d0 = diff[i * 3], d1 = diff[i * 3 + 1], d2 = diff[i * 3 + 2];
+      const pos = d0 + d1 + d2 > 0;
+      // Farbabweichung staerker verstaerken als Grauabweichung (Gitter bleibt blass)
+      const mn = Math.min(d0, d1, d2), gray = pos ? Math.max(0, mn) : 0;
+      const g1 = 1.6, g2 = 3.4;
+      out.data[i * 4] = Math.max(0, Math.min(255, 255 - gray * g1 - (d0 - gray) * g2 * (pos ? 1 : 0)));
+      out.data[i * 4 + 1] = Math.max(0, Math.min(255, 255 - gray * g1 - (d1 - gray) * g2 * (pos ? 1 : 0)));
+      out.data[i * 4 + 2] = Math.max(0, Math.min(255, 255 - gray * g1 - (d2 - gray) * g2 * (pos ? 1 : 0)));
+      out.data[i * 4 + 3] = 255;
+    }
+    const o = document.createElement('canvas'); o.width = w; o.height = h;
+    o.getContext('2d').putImageData(out, 0, 0);
+    return o;
+  }
+
+  Analyse.prototype._showRect = function () {
+    if (!this.res) return;
+    const R = this.res.rect;
+    if (this.enhanced && !R.enhancedCanvas) R.enhancedCanvas = enhance(R.canvas);
+    this.viewer.setImage(this.enhanced ? R.enhancedCanvas : R.canvas);
+  };
 
   // ---------- Ablauf ----------
   Analyse.prototype.start = async function (srcCanvas, name, pdfWords) {
@@ -83,7 +114,7 @@
       this._msg('Analyse fehlgeschlagen: ' + e.message, true);
       return;
     }
-    this.viewer.setImage(this.res.rect.canvas);
+    this._showRect();
     this.sel = new Set((this.res.curves || []).map((c, i) => i));
     this._setMode('review');
     this._renderStatus();
@@ -125,7 +156,7 @@
 
   // Zurueck bricht die laufende Korrektur ab (ohne sofort neu zu fragen); im Ergebnis zurueck zur Uebersicht.
   Analyse.prototype._back = function () {
-    if (this.mode === 'corners' && this.res) { this.viewer.setImage(this.res.rect.canvas); this._setMode('review'); this._msgAbort(); return; }
+    if (this.mode === 'corners' && this.res) { this._showRect(); this._setMode('review'); this._msgAbort(); return; }
     if (this.mode === 'axis' || this.mode === 'add') { this._setMode('review'); this._msgAbort(); return; }
     this.cb.onBack();
   };
@@ -156,6 +187,10 @@
       this._msg('Ziehe die 4 Punkte auf die Ecken des Diagrammrahmens, dann Analysieren.');
     } else if (what === 'x' || what === 'power') {
       this._startAxis(what);
+    } else if (what === 'enhance') {
+      this.enhanced = !this.enhanced;
+      this._showRect();
+      this._msg(this.enhanced ? 'Verstärkte Ansicht: Hintergrund normiert, Linien hervorgehoben.' : 'Originalbild.');
     } else if (what === 'add') {
       this.mode = 'add';
       this._msg('Tippe auf die fehlende Kurve.');
